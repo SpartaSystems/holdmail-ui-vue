@@ -1,3 +1,7 @@
+# THIS PROJECT HAS BEEN DEPRECATED
+
+> This project has been migrated into [HoldMail](https://github.com/spartasystems/holdmail)
+
 # Vue.js UI for [HoldMail](https://github.com/spartasystems/holdmail)
 This project is used as an educational tool for understanding the Vue.js ecosystem. This project replicates all of the UI features that HoldMail (using Angular) has today. This project is meant to compare UI technologies and learn more about [Vue.js](https://vuejs.org/v2/guide).
 
@@ -6,14 +10,13 @@ This project is used as an educational tool for understanding the Vue.js ecosyst
 - Run `npm install` to setup the dependencies for this project.
 - Run `npm run dev` to run the Vue.js UI.
 
-
-## Other Scripts
+## Build Setup
 
 ``` bash
 # install dependencies
 npm install
 
-# serve with hot reload at localhost:8000
+# serve with hot reload at localhost:8080
 npm run dev
 
 # build for production with minification
@@ -25,6 +28,11 @@ npm run build --report
 # run unit tests
 npm run unit
 
+# run e2e tests
+npm run e2e
+
 # run all tests
 npm test
 ```
+
+For a detailed explanation on how things work, check out the [guide](http://vuejs-templates.github.io/webpack/) and [docs for vue-loader](http://vuejs.github.io/vue-loader).

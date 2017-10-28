@@ -17,49 +17,49 @@
  ******************************************************************************/
 
 <template>
-  <b-modal id="modal1" :title="message.subject" size="lg">
-      <b-alert id="forward-alert" :show="dismissCountDown" variant="success" @dismiss-count-down="countDownChanged">
-        Mail {{ message.messageId }} successfully sent to <strong>{{ forwardRecipient }}</strong>
-      </b-alert>
+  <div id="message-detail">
+    <b-alert id="forward-alert" :show="dismissCountDown" variant="success" @dismiss-count-down="countDownChanged">
+      Mail {{ message.messageId }} successfully sent to <strong>{{ forwardRecipient }}</strong>
+    </b-alert>
+    <b-card header-tag="header" class="details-container">
+      <div slot="header" class="p-1">
+        <b-button id="fwdButton" class="pull-left" size="sm" variant="primary" onclick="history.back()">
+          <span class="fa fa-arrow-left" aria-hidden="true"></span>
+        </b-button>
+        <h4 class="pl-2 pull-left message-subject">{{ message.subject }}</h4>
+        <div class="btn-group pull-right">
+          <b-button id="fwdButton" size="sm" variant="primary">
+            Forward
+            <span class="fa fa-forward" aria-hidden="true"></span>
+          </b-button>
+        </div>
+      </div>
+      <table class="table table-sm table-condensed addresses">
+          <tr>
+            <td class=""><strong>From:</strong></td>
+            <td>{{message.senderEmail}}</td>
+            <td class="text-right pr-2">{{ receivedDate | date('%b %-d, %Y %r') }}</td>
+          </tr>
+          <tr>
+            <td><strong>To:</strong></td>
+            <td colspan="2">{{message.recipients}}</td>
+          </tr>
+      </table>
       <b-tabs :no-fade="true" ref="tabs">
         <b-tab id="original-message" title="Original Message">
           <div class="mail-summary-content mail-summary-content-pre mail-summary-content-raw">{{ message.messageRaw }}</div>
         </b-tab>
         <b-tab id="html-body" title="HTML Body" :disabled="!message.messageHasBodyHTML">
-            <mail-metadata :message="message"></mail-metadata>
-            <iframe class="mail-summary-content mail-summary-content-html" :srcdoc="message.messageBodyHTML"></iframe>
+            <!-- <mail-metadata :message="message"></mail-metadata> -->
+            <iframe class="mail-summary-content mail-summary-content-html" :srcdoc="messageHTML"></iframe>
         </b-tab>
         <b-tab id="html-text" title="Text Body" :disabled="!message.messageHasBodyText">
-            <mail-metadata :message="message"></mail-metadata>
+            <!-- <mail-metadata :message="message"></mail-metadata> -->
             <div class="mail-summary-content mail-summary-content-pre mail-summary-content-raw">{{message.messageBodyText}}</div>
         </b-tab>
       </b-tabs>
-      <div slot="modal-footer" :class="{ 'input-group': true, 'has-danger': errors.any() }">
-        <input id="forwardRecipientTxt" type="email" class="form-control"
-          name="forwardEmail"
-          v-model="forwardRecipient"
-          v-validate="'email'"
-          placeholder="Forward To: e.g. homer@simpson.com"
-          :disabled="busyForwarding"
-          required>
-        <span class="input-group-btn pl-2">
-          <b-popover ref="valPopover"
-            :triggers="false"
-            :content="errors && errors.first('forwardEmail')"
-            :show="errors.any()">
-            <button id="forwardBut" class="btn btn-primary" type="button"
-              @click="forwardMail"
-              :disabled="errors.any() || forwardRecipient === '' || busyForwarding">
-                <span v-if="!busyForwarding">
-                  Forward
-                  <i class="fa fa-forward" aria-hidden="true"></i>
-                </span>
-                <i v-if="busyForwarding" class="fa fa-spinner fa-pulse fa-fw"></i>
-            </button>
-          </b-popover>
-        </span>
-      </div>
-    </b-modal>
+    </b-card>
+  </div>
 </template>
 
 <script>
@@ -67,36 +67,31 @@ import Vue from 'vue'
 import VeeValidate from 'vee-validate'
 import BootstrapVue from 'bootstrap-vue'
 import messagesApi from '@/api/messages'
-import MailMetadata from '@/components/MailMetadata'
 
 Vue.use(BootstrapVue)
 Vue.use(VeeValidate)
 
 export default {
   name: 'message-detail',
-  components: { MailMetadata },
-  props: {
-    'message': {
-      type: Object,
-      required: true
-    }
-  },
   data () {
     return {
+      message: {},
       dismissCountDown: null,
       busyForwarding: false,
       forwardRecipient: '',
-      messageHTML: ''
+      errorContent: null
     }
   },
   mounted () {
-    // auto-hide popover (https://github.com/bootstrap-vue/bootstrap-vue/issues/151)
-    this.$root.$on('hidden::modal', (id) => {
-      /* istanbul ignore else */
-      if (id === 'modal1') {
-        this.$refs.valPopover.hidePopover()
-      }
-    })
+    const messageId = this.$route.params.messageId
+
+    messagesApi.getMessageDetail(messageId)
+      .then((response) => {
+        this.message = response.data
+      })
+      .catch(() => {
+        console.log('Service failed to query message detail')
+      })
   },
   watch: {
     message () {
@@ -107,18 +102,52 @@ export default {
       }
     }
   },
-  methods: {
-    forwardMail () {
-      this.busyForwarding = true
+  computed: {
+    messageHTML () {
+      if (this.message && this.message.messageHasBodyHTML) {
+        var html = this.message.messageBodyHTML
+        var el = document.createElement('html')
 
-      messagesApi.forwardMessage(this.message.messageId, this.forwardRecipient)
-        .then((response) => {
-          this.busyForwarding = false
-          this.dismissCountDown = 5
-        })
-        .catch(() => {
-          console.log('Service failed to forward message to ' + this.forwardRecipient)
-        })
+        el.innerHTML = html
+
+        var links = el.getElementsByTagName('a')
+
+        for (var i = 0; i < links.length; i++) {
+          links[i].setAttribute('target', '_new')
+        }
+
+        return el.innerHTML
+      } else {
+        return ''
+      }
+    },
+    receivedDate () {
+      const receivedDate = this.message && this.message.receivedDate
+      return receivedDate || 0
+    }
+  },
+  methods: {
+
+    forwardMail () {
+      this.$validator.validateAll()
+
+      if (this.errors.has('forwardEmail')) {
+        this.errorContent = this.errors && this.errors.first('forwardEmail')
+        this.$refs.valPopover._toolpop.show()
+      } else {
+        this.$refs.valPopover._toolpop.hide()
+
+        this.busyForwarding = true
+
+        messagesApi.forwardMessage(this.message.messageId, this.forwardRecipient)
+          .then((response) => {
+            this.busyForwarding = false
+            this.dismissCountDown = 5
+          })
+          .catch(() => {
+            console.log('Service failed to forward message to ' + this.forwardRecipient)
+          })
+      }
     },
     countDownChanged (dismissCountDown) {
       this.dismissCountDown = dismissCountDown
@@ -132,13 +161,24 @@ export default {
 }
 </script>
 
-<style>
-.mail-details-modal .modal-dialog {
-    width :40%;
-    height: 90%;
-    min-width: 800px;
-    min-height: 400px;
+<style scoped lang="less">
+
+.details-container {
+  .card-header {
+    padding: 0;
+    color: #31708f;
+    background-color: #d9edf7;
+    border-color: #bce8f1;
+  }
+  .card-body {
+    padding: 0;
+  }
 }
+
+table.addresses {
+  margin-bottom: 0;
+}
+
 .mail-summary {
     height: 500px;
     flex-direction: column;
@@ -147,7 +187,7 @@ export default {
 .mail-summary-content {
     width: 100%;
     height: 330px;
-    border: 1px solid #dddddd;
+    border: 0;
     padding: 5px;
 }
 

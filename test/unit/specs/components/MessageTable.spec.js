@@ -16,62 +16,34 @@
  * limitations under the License.
  ******************************************************************************/
 
+import Vue from 'vue'
+import Router from 'vue-router'
 import messagesApi from '@/api/messages'
 import MessageTable from '@/components/MessageTable'
+import router from '@/router'
 
 import msgs from '../../api-mocks/message-list'
-import messageDetail from '../../api-mocks/message-detail-1'
-
-var getComponent = generateComponentMounter(MessageTable)
-
-// because Vue.js caches their constructors, one needs to remove
-// the cached constructor when stubbing Module functions (similar to prototypes)
-// so that the next test does not inherit the cached module that has a stubbed
-// function
-function deleteModuleCtorCache () {
-  delete MessageTable._Ctor
-}
-
-function stubMessageList () {
-  return sinon.stub(messagesApi, 'getMessageList').returns(new Promise(() => {}))
-}
-
-function stubMessageListSuccess (messages) {
-  const d = {
-    data: { messages }
-  }
-  const resolved = new Promise((resolve, reject) => resolve(d))
-
-  return sinon.stub(messagesApi, 'getMessageList')
-    .returns(resolved)
-}
-
-function stubMessageDetailSuccess (details) {
-  const d = {
-    data: details
-  }
-  const resolved = new Promise((resolve, reject) => resolve(d))
-
-  return sinon.stub(messagesApi, 'getMessageDetail')
-    .returns(resolved)
-}
 
 describe('MessageTable.vue', () => {
   var comp
+  var sandbox
+  const getComponent = generateComponentMounter(MessageTable)
+
+  beforeEach(() => {
+    sandbox = sinon.sandbox.create()
+  })
+
+  afterEach(() => {
+    sandbox.restore()
+  })
 
   describe('Lifecycle', () => {
     it('fetches messages on mount', () => {
-      deleteModuleCtorCache()
-
-      const stub = sinon.stub(MessageTable.methods, 'clearAndFetchMessages')
+      const stub = sandbox.stub(MessageTable.methods, 'clearAndFetchMessages')
 
       getComponent()
 
       expect(stub.calledOnce).to.be.ok
-
-      stub.restore()
-
-      deleteModuleCtorCache()
     })
   })
 
@@ -135,8 +107,8 @@ describe('MessageTable.vue', () => {
       // stub out mounted() function it calls MessageTable.clearAndFetchMessages()
       // and messes with the timing of this test (would fire clearAndFetchMessages() twice,
       // making the MessageTable.busy true at the time of test)
-      var mountedStub = sinon.stub(MessageTable, 'mounted')
-      var stub = stubMessageList()
+      sandbox.stub(MessageTable, 'mounted')
+      stubMessageList()
 
       comp = getComponent()
 
@@ -148,9 +120,6 @@ describe('MessageTable.vue', () => {
         expect(comp.busy).to.be.true
         expect(comp.$el.querySelector('.progress').style.display).to.equal('')
 
-        stub.restore()
-        mountedStub.restore()
-
         deleteModuleCtorCache()
 
         done()
@@ -159,34 +128,62 @@ describe('MessageTable.vue', () => {
   })
 
   describe('Behavior', () => {
+    it('prevents simultaneous fetches of message list', () => {
+      var stub = stubMessageList()
+
+      comp = getComponent() // clearAndFetchMessages() called during mount lifecycle phase
+
+      expect(comp.busy).to.be.true // component is already busy now
+
+      comp.clearAndFetchMessages() // attempt a simulatenous fetch
+
+      expect(stub.callCount).to.equal(1) // message list fetch only called once
+    })
+
+    it('row click displays message details', (done) => {
+      stubMessageListSuccess(msgs)
+
+      Vue.use(Router)
+      var Constructor = Vue.extend(MessageTable)
+
+      comp = new Constructor({router}).$mount()
+
+      sandbox.stub(comp.$router, 'push')
+
+      setTimeout(function () {
+        triggerEvent(comp, '#mailResults table tbody tr:first-child', 'click')
+
+        expect(comp.$router.push.getCall(0).args[0])
+        .to.deep.equal({ name: 'MessageDetail', params: { messageId: 57 } })
+
+        done()
+      }, 0)
+    })
+
     describe('Searching', () => {
       it('search is initiated on enter key of search field', () => {
-        var stub = stubMessageListSuccess(msgs)
+        stubMessageListSuccess(msgs)
 
         comp = getComponent()
 
-        var clearFetchStub = sinon.stub(comp, 'clearAndFetchMessages')
+        var clearFetchStub = sandbox.stub(comp, 'clearAndFetchMessages')
 
         triggerEvent(comp, '#mainSearchTxt', 'keyup', 13)
 
         expect(clearFetchStub.calledOnce).to.be.ok
-
-        stub.restore()
       })
 
       it('search is initiated on clicking search button', (done) => {
-        var stub = stubMessageListSuccess(msgs)
+        stubMessageListSuccess(msgs)
 
         comp = getComponent()
 
-        var clearFetchStub = sinon.stub(comp, 'clearAndFetchMessages')
+        var clearFetchStub = sandbox.stub(comp, 'clearAndFetchMessages')
 
         comp.$nextTick(function () {
           triggerEvent(comp, '#mainSearchBut', 'click')
 
           expect(clearFetchStub.callCount).to.equal(1)
-
-          stub.restore()
 
           done()
         })
@@ -197,7 +194,7 @@ describe('MessageTable.vue', () => {
 
         deleteModuleCtorCache()
 
-        var mountedStub = sinon.stub(MessageTable, 'mounted')
+        sandbox.stub(MessageTable, 'mounted')
 
         comp = getComponent()
 
@@ -211,9 +208,6 @@ describe('MessageTable.vue', () => {
           setTimeout(function () {
             expect(stub.calledWith(40, 0, 'test@test.com')).to.be.true
 
-            stub.restore()
-            mountedStub.restore() // restoring mounted()
-
             deleteModuleCtorCache()
 
             done()
@@ -221,44 +215,27 @@ describe('MessageTable.vue', () => {
         })
       })
     })
-
-    it('prevents simultaneous fetches of message list', () => {
-      var stub = stubMessageList()
-
-      comp = getComponent() // clearAndFetchMessages() called during mount lifecycle phase
-
-      expect(comp.busy).to.be.true // component is already busy now
-
-      comp.clearAndFetchMessages() // attempt a simulatenous fetch
-
-      expect(stub.callCount).to.equal(1) // message list fetch only called once
-
-      stub.restore()
-    })
-
-    it('row click displays message details', (done) => {
-      var listStub = stubMessageListSuccess(msgs)
-      var detailStub = stubMessageDetailSuccess(messageDetail)
-
-      comp = getComponent()
-
-      sinon.stub(comp.$root, '$emit')
-
-      setTimeout(function () {
-        triggerEvent(comp, '#mailResults table tbody tr:first-child', 'click')
-
-        expect(detailStub.callCount).to.equal(1)
-
-        setTimeout(function () {
-          expect(comp.selectedMail).to.equal(messageDetail)
-          expect(comp.$root.$emit.calledWith('show::modal', 'modal1')).to.be.true
-
-          listStub.restore()
-          detailStub.restore()
-
-          done()
-        }, 0)
-      }, 0)
-    })
   })
+
+  // because Vue.js caches their constructors, one needs to remove
+  // the cached constructor when stubbing Module functions (similar to prototypes)
+  // so that the next test does not inherit the cached module that has a stubbed
+  // function
+  function deleteModuleCtorCache () {
+    delete MessageTable._Ctor
+  }
+
+  function stubMessageList () {
+    return sandbox.stub(messagesApi, 'getMessageList').returns(new Promise(() => {}))
+  }
+
+  function stubMessageListSuccess (messages) {
+    const d = {
+      data: { messages }
+    }
+    const resolved = new Promise((resolve, reject) => resolve(d))
+
+    return sandbox.stub(messagesApi, 'getMessageList')
+      .returns(resolved)
+  }
 })

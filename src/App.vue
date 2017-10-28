@@ -18,23 +18,23 @@
 
 <template>
   <div id="app">
-    <b-navbar class="bg-faded pt-0 pb-0" toggleable>
+    <b-navbar type="light" variant="light" toggleable class="pt-0 pb-0 mb-3">
       <b-nav-toggle target="nav_collapse"/>
-      <a class="navbar-brand" to="/">
+      <router-link to="/">
+        <a class="navbar-brand p-0">
           <img src="./assets/holdmail-header-logo.png" alt="HoldMail Logo" title="HoldMail Home" height="40">
-      </a>
+        </a>
+      </router-link>
       <b-collapse is-nav id="nav_collapse">
           <b-nav is-nav-bar class="ml-auto">
-              <b-nav-item href="https://github.com/spartasystems/holdmail-vue-ui">
+              <b-nav-item href="https://github.com/spartasystems/holdmail">
                 <i class="holdmail-nav-link fa fa-github"></i> GitHub
               </b-nav-item>
           </b-nav>
       </b-collapse>
     </b-navbar>
     <div class="container">
-      <div class="row">
-        <message-table></message-table>
-      </div>
+      <router-view/>
     </div>
   </div>
 </template>
@@ -42,12 +42,17 @@
 <script>
 import Vue from 'vue'
 import BootstrapVue from 'bootstrap-vue'
-import MessageTable from '@/components/MessageTable'
 
 Vue.use(BootstrapVue)
 
 export default {
-  name: 'app',
-  components: { MessageTable }
+  name: 'app'
 }
 </script>
+
+<style scoped lang="less">
+  .navbar {
+    border-bottom: 1px #e7e7e7 solid;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 1px 5px rgba(0,0,0,.075);
+  }
+</style>

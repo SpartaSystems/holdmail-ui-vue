@@ -5,7 +5,10 @@
   "globals": {
     "expect": true,
     "sinon": true,
-    "triggerEvent": true,
-    "generateComponentMounter": true
+    "triggerEvent": false,
+    "generateComponentMounter": false
+  },
+  "rules": {
+      "no-unused-expressions": "off"
   }
 }

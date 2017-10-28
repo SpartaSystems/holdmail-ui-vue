@@ -17,14 +17,11 @@
  ******************************************************************************/
 
 import Vue from 'vue'
+
 Vue.config.productionTip = false
 
-// Polyfill fn.bind() for PhantomJS
-/* eslint-disable no-extend-native */
-Function.prototype.bind = require('function-bind')
-
 // load helpers
-const helpersContext = require.context('../helpers', true)
+const helpersContext = require.context('./helpers', true)
 helpersContext.keys().forEach(helpersContext)
 
 // require all test files (files that ends with .spec.js)

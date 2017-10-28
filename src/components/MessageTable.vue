@@ -77,7 +77,6 @@
         </div>
       </div>
     </div>
-    <message-detail :message="selectedMail"></message-detail>
   </div>
 </template>
 
@@ -86,7 +85,6 @@ import Vue from 'vue'
 import infiniteScroll from 'vue-infinite-scroll'
 import filters from 'vue-filter'
 import messagesApi from '@/api/messages'
-import MessageDetail from '@/components/MessageDetail'
 
 Vue.use(infiniteScroll)
 Vue.use(filters)
@@ -104,7 +102,6 @@ export default {
       selectedMail: {}
     }
   },
-  components: { MessageDetail },
   mounted () {
     this.clearAndFetchMessages()
   },
@@ -143,15 +140,7 @@ export default {
         })
     },
     rowClick (selectedMail) {
-      messagesApi.getMessageDetail(selectedMail.messageId)
-        .then((response) => {
-          this.selectedMail = response.data
-
-          this.$root.$emit('show::modal', 'modal1')
-        })
-        .catch(() => {
-          console.log('Service failed to query message detail')
-        })
+      this.$router.push({ name: 'MessageDetail', params: { messageId: selectedMail.messageId } })
     }
   }
 }
